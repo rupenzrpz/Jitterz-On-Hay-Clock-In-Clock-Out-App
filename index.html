@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cafe Staff Clock In / Out</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f4f4f4;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+    .container {
+      background: #ffffff;
+      padding: 20px 30px;
+      border-radius: 8px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      width: 360px;
+      text-align: center;
+    }
+    h2 {
+      margin-bottom: 15px;
+    }
+    select, button {
+      width: 100%;
+      padding: 10px;
+      margin: 8px 0;
+      font-size: 16px;
+    }
+    .log {
+      margin-top: 15px;
+      font-size: 14px;
+      text-align: left;
+      max-height: 160px;
+      overflow-y: auto;
+      border-top: 1px solid #ddd;
+      padding-top: 10px;
+    }
+    .clock-in { color: green; }
+    .clock-out { color: red; }
+  </style>
+  <!-- SheetJS Library for Excel Export -->
+  <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+
+  <div class="container">
+    <h2>Staff Clock System</h2>
+
+    <select id="staff">
+      <option value="">-- Select Staff --</option>
+    </select>
+
+    <button onclick="clockIn()">Clock In</button>
+    <button onclick="clockOut()">Clock Out</button>
+    <button onclick="exportExcel()">Export Excel</button>
+
+    <div class="log" id="log"></div>
+  </div>
+
+  <!-- Staff list -->
+  <script src="staff.js"></script>
+
+  <script>
+    const STORAGE_KEY = 'staff_clock_history';
+    const staffSelect = document.getElementById('staff');
+    const log = document.getElementById('log');
+
+    // Populate staff dropdown
+    staffList.forEach(name => {
+      const option = document.createElement('option');
+      option.value = name;
+      option.textContent = name;
+      staffSelect.appendChild(option);
+    });
+
+    // Load saved records from Local Storage
+    let records = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+
+    // Display previous records
+    records.forEach(r => {
+      const cls = r.action === 'Clock In' ? 'clock-in' : 'clock-out';
+      log.innerHTML += `<p class="${cls}"><strong>${r.staff}</strong> - ${r.action}<br>${r.date} ${r.time}</p>`;
+    });
+
+    function clockIn() { recordTime('Clock In'); }
+    function clockOut() { recordTime('Clock Out'); }
+
+    function recordTime(action) {
+      const staff = staffSelect.value;
+      if (!staff) {
+        alert('Please select a staff member');
+        return;
+      }
+
+      // Check last record for this staff
+      const lastRecord = [...records].reverse().find(r => r.staff === staff);
+
+      if (action === 'Clock In') {
+        if (lastRecord && lastRecord.action === 'Clock In') {
+          alert('You must clock out before clocking in again.');
+          return;
+        }
+      } else if (action === 'Clock Out') {
+        if (!lastRecord || lastRecord.action !== 'Clock In') {
+          alert('You must clock in before clocking out.');
+          return;
+        }
+      }
+
+      const now = new Date();
+      const record = {
+        staff: staff,
+        action: action,
+        date: now.toLocaleDateString(),
+        time: now.toLocaleTimeString()
+      };
+
+      records.push(record);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+
+      const cls = action === 'Clock In' ? 'clock-in' : 'clock-out';
+      log.innerHTML += `<p class="${cls}"><strong>${record.staff}</strong> - ${record.action}<br>${record.date} ${record.time}</p>`;
+    }
+
+    // Export Excel with one row per staff per day, clock in/out and total hours
+    function exportExcel() {
+      if (records.length === 0) {
+        alert('No records to export.');
+        return;
+      }
+
+      // Group records by staff + date
+      const summary = {};
+      records.forEach(r => {
+        const key = r.staff + '_' + r.date;
+        if (!summary[key]) summary[key] = { Staff: r.staff, Date: r.date, 'Clock In': null, 'Clock Out': null, 'Total Hours': '' };
+
+        if (r.action === 'Clock In' && !summary[key]['Clock In']) summary[key]['Clock In'] = r.time;
+        if (r.action === 'Clock Out') summary[key]['Clock Out'] = r.time; // last clock out of the day
+      });
+
+      // Calculate total hours
+      Object.values(summary).forEach(s => {
+        if (s['Clock In'] && s['Clock Out']) {
+          const inTime = new Date(s.Date + ' ' + s['Clock In']);
+          const outTime = new Date(s.Date + ' ' + s['Clock Out']);
+          s['Total Hours'] = ((outTime - inTime) / 1000 / 60 / 60).toFixed(2);
+        }
+      });
+
+      // Create Excel file
+      const ws = XLSX.utils.json_to_sheet(Object.values(summary));
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Staff Hours');
+
+      // Trigger download
+      XLSX.writeFile(wb, 'staff_clock_history.xlsx');
+    }
+  </script>
+
+</body>
+</html>
