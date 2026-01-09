@@ -66,8 +66,9 @@
     const staffSelect = document.getElementById('staff');
     const log = document.getElementById('log');
 
-    // Your Google Apps Script Web App URL
-    const GOOGLE_SHEET_URL = "https://script.google.com/macros/s/AKfycbwD5-rjbj71C4CpzqO5gRa59Ujkfi41r2M5fg5VZiDtne0afvOXkGAFYiA0FRVhgn2f/exec"; // replace with your Apps Script URL
+    // ✅ Google Apps Script Web App URL
+    const GOOGLE_SHEET_URL =
+      "https://script.google.com/macros/s/AKfycbwD5-rjbj71C4CpzqO5gRa59Ujkfi41r2M5fg5VZiDtne0afvOXkGAFYiA0FRVhgn2f/exec";
 
     // Populate staff dropdown
     staffList.forEach(name => {
@@ -77,19 +78,28 @@
       staffSelect.appendChild(option);
     });
 
-    // Load saved records from Local Storage
+    // Load records
     let records = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
 
-    // Display previous records
+    // Display previous logs
     function displayRecord(r) {
       const cls = r.action === 'Clock In' ? 'clock-in' : 'clock-out';
-      log.innerHTML += `<p class="${cls}"><strong>${r.staff}</strong> - ${r.action}<br>${r.date} ${r.time}</p>`;
+      log.innerHTML += `
+        <p class="${cls}">
+          <strong>${r.staff}</strong> - ${r.action}<br>
+          ${r.date} ${r.time}
+        </p>`;
     }
+
     records.forEach(displayRecord);
 
-    // Clock In / Clock Out functions
-    function clockIn() { recordTime('Clock In'); }
-    function clockOut() { recordTime('Clock Out'); }
+    function clockIn() {
+      recordTime('Clock In');
+    }
+
+    function clockOut() {
+      recordTime('Clock Out');
+    }
 
     function recordTime(action) {
       const staff = staffSelect.value;
@@ -98,59 +108,59 @@
         return;
       }
 
-      // Check last record for this staff
       const lastRecord = [...records].reverse().find(r => r.staff === staff);
 
-      if (action === 'Clock In') {
-        if (lastRecord && lastRecord.action === 'Clock In') {
-          alert('You must clock out before clocking in again.');
-          return;
-        }
-      } else if (action === 'Clock Out') {
-        if (!lastRecord || lastRecord.action !== 'Clock In') {
-          alert('You must clock in before clocking out.');
-          return;
-        }
+      if (action === 'Clock In' && lastRecord && lastRecord.action === 'Clock In') {
+        alert('You must clock out before clocking in again.');
+        return;
+      }
+
+      if (action === 'Clock Out' && (!lastRecord || lastRecord.action !== 'Clock In')) {
+        alert('You must clock in before clocking out.');
+        return;
       }
 
       const now = new Date();
+
       const record = {
-        staff: staff,
-        action: action,
+        staff,
+        action,
         date: now.toLocaleDateString(),
         time: now.toLocaleTimeString(),
-        clockIn: action === 'Clock In' ? now.toLocaleTimeString() : (lastRecord ? lastRecord.time : ''),
+        clockIn: action === 'Clock In' ? now.toLocaleTimeString() : lastRecord.time,
         clockOut: action === 'Clock Out' ? now.toLocaleTimeString() : ''
       };
 
-      // Save locally
       records.push(record);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
-
       displayRecord(record);
 
-      // If Clock Out, send to Google Sheet
       if (action === 'Clock Out') {
         const inTime = new Date(record.date + ' ' + record.clockIn);
         const outTime = new Date(record.date + ' ' + record.clockOut);
-        const totalHours = ((outTime - inTime) / 1000 / 60 / 60).toFixed(2);
+        const totalHours = ((outTime - inTime) / 3600000).toFixed(2);
 
-        saveToGoogleSheet(record.staff, record.date, record.clockIn, record.clockOut, totalHours);
+        saveToGoogleSheet(
+          record.staff,
+          record.date,
+          record.clockIn,
+          record.clockOut,
+          totalHours
+        );
       }
     }
 
-    // Send data to Google Sheet
+    // ✅ Send data to Google Sheets (CORS-safe)
     function saveToGoogleSheet(staff, date, clockIn, clockOut, totalHours) {
       const payload = { staff, date, clockIn, clockOut, totalHours };
 
       fetch(GOOGLE_SHEET_URL, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
         mode: "no-cors"
       });
+    }
   </script>
 
 </body>
