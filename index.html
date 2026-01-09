@@ -67,7 +67,7 @@
     const log = document.getElementById('log');
 
     // Your Google Apps Script Web App URL
-    const GOOGLE_SHEET_URL = "https://script.google.com/macros/s/AKfycbw2kG-m0Gqub6DzVglkmYbXfy99Gw9gmpu8x0cgY-BO4Ba1LqfVepkESl9nDKggk7dW/exec"; // replace with your Apps Script URL
+    const GOOGLE_SHEET_URL = "https://script.google.com/macros/s/AKfycbwD5-rjbj71C4CpzqO5gRa59Ujkfi41r2M5fg5VZiDtne0afvOXkGAFYiA0FRVhgn2f/exec"; // replace with your Apps Script URL
 
     // Populate staff dropdown
     staffList.forEach(name => {
@@ -145,12 +145,12 @@
 
       fetch(GOOGLE_SHEET_URL, {
         method: "POST",
-        body: JSON.stringify(payload)
-      })
-      .then(res => res.json())
-      .then(data => console.log("Google Sheet updated:", data))
-      .catch(err => console.error("Error updating Google Sheet:", err));
-    }
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(payload),
+        mode: "no-cors"
+      });
   </script>
 
 </body>
